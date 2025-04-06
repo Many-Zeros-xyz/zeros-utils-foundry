@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-IManyZerosMarket constant MANY_ZEROS_MARKET = IManyZerosMarket(0x000000000000b361194cfe6312EE3210d53C15AA);
-
 /// @author philogy <https://github.com/philogy>
 interface IManyZerosMarket {
     error AccountBalanceOverflow();

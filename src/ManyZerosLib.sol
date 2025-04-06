@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IManyZerosMarket, MANY_ZEROS_MARKET} from "./IManyZerosMarket.sol";
+import {IManyZerosMarket} from "./IManyZerosMarket.sol";
+
+IManyZerosMarket constant MANY_ZEROS_MARKET = IManyZerosMarket(0x000000000000b361194cfe6312EE3210d53C15AA);
 
 struct GiveUpEverywhere {
     uint256 id;

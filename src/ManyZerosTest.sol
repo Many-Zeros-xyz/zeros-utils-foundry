@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {MANY_ZEROS_MARKET} from "./IManyZerosMarket.sol";
+import {MANY_ZEROS_MARKET} from "./ManyZerosLib.sol";
 
 /// @author philogy <https://github.com/philogy>
 abstract contract ManyZerosTest {
@@ -34,5 +34,61 @@ abstract contract ManyZerosTest {
     function _etch(address who, bytes memory code) private {
         (bool success,) = address(uint160(_FOUNDRY_VM)).call(abi.encodeWithSignature("etch(address,bytes)", who, code));
         require(success, "vm.etch failed");
+    }
+
+    uint256 private constant DEPLOY_PROXY_INITHASH = 0x1decbcf04b355d500cbc3bd83c892545b4df34bd5b2c9d91b9f7f8165e2095c3;
+
+    function addrTokenId(address owner, uint96 ext, uint8 nonce) internal pure returns (uint256 id, address addr) {
+        require(nonce < type(uint8).max, "Valid nonce must be between 0-254");
+        nonce += 1;
+
+        address market = address(MANY_ZEROS_MARKET);
+        assembly ("memory-safe") {
+            let ptr := mload(0x40)
+            mstore(0x40, DEPLOY_PROXY_INITHASH)
+            mstore(0x20, ext)
+            mstore(0x14, owner)
+            id := mload(0x20)
+            mstore(0x00, market)
+            mstore8(0x0b, 0xff) // Write the leading create2 byte.
+            let deployProxy := keccak256(0x0b, 0x55)
+            // Restore the free memory pointer
+            mstore(0x40, ptr)
+
+            /// Credit to Solady's LibRLP: https://github.com/Vectorized/solady/blob/dcdfab80f4e6cb9ac35c91610b2a2ec42689ec79/src/utils/LibRLP.sol
+            for {} 1 {} {
+                // The integer zero is treated as an empty byte string,
+                // and as a result it only has a length prefix, 0x80,
+                // computed via `0x80 + 0`.
+
+                // A one-byte integer in the [0x00, 0x7f] range uses its
+                // own value as a length prefix,
+                // there is no additional `0x80 + length` prefix that precedes it.
+                if iszero(gt(nonce, 0x7f)) {
+                    mstore(0x00, deployProxy)
+                    // Using `mstore8` instead of `or` naturally cleans
+                    // any dirty upper bits of `deployer`.
+                    mstore8(0x0b, 0x94)
+                    mstore8(0x0a, 0xd6)
+                    // `shl` 7 is equivalent to multiplying by 0x80.
+                    mstore8(0x20, or(shl(7, iszero(nonce)), nonce))
+                    addr := keccak256(0x0a, 0x17)
+                    break
+                }
+                let i := 8
+                // Just use a loop to generalize all the way with minimal bytecode size.
+                for {} shr(i, nonce) { i := add(i, 8) } {}
+                // `shr` 3 is equivalent to dividing by 8.
+                i := shr(3, i)
+                // Store in descending slot sequence to overlap the values correctly.
+                mstore(i, nonce)
+                mstore(0x00, shl(8, deployProxy))
+                mstore8(0x1f, add(0x80, i))
+                mstore8(0x0a, 0x94)
+                mstore8(0x09, add(0xd6, i))
+                addr := keccak256(0x09, add(0x17, i))
+                break
+            }
+        }
     }
 }
